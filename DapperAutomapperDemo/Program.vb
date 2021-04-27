@@ -7,6 +7,12 @@ Imports Dapper
 Imports AutoMapper
 Imports System.Data
 
+' This code does not use much of the extended functionality bult into AutoMapper
+' With time I may extend this. If you have code or examples to include please let me know.
+' 
+
+
+
 Module Program
     Private _db As IDbConnection
 
@@ -53,6 +59,10 @@ Module Program
         Try
 
             ' The line below will list all the unmapped fields. Use this to debug and trouble shoot
+            ' This will list all the fields that are not mapped or ignored.
+            ' This makes checking your code very quick and easy.
+            ' TRY IT (The demo done not have any errors, I suggest adding a random vield to the Destination Class.
+            ' VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV
             ' DestMapperConfig.AssertConfigurationIsValid()
 
 
@@ -139,7 +149,9 @@ Module Program
                     .ForMember(Function(dest) dest.Surname, Sub(opt) opt.MapFrom(Function(src As DataSource) src.Lastname)) _
                     .ForMember(Function(dest) dest.DateOfBirth, Sub(opt) opt.MapFrom(Function(src As DataSource) src.DOB)) _
                     .ForMember(Function(dest) dest.Prefix, Sub(opt) opt.MapFrom(Function(src As DataSource) If(src.Title.Length < 7, src.Title, Nothing))) _
-                    .ForMember(Function(dest) dest.Position, Sub(opt) opt.MapFrom(Function(src As DataSource) If(src.Title.Length >= 7, src.Title, Nothing)))
+                    .ForMember(Function(dest) dest.Position, Sub(opt) opt.MapFrom(Function(src As DataSource) If(src.Title.Length >= 7, src.Title, Nothing))) _
+                    .ForMember(Function(dest) dest.Phones, Sub(opt) opt.Ignore())
+
         Return Config
     End Function
     Function MobileMapConfig(Config As IMapperConfigurationExpression, Optional DST_ID As Long = -1) As IMapperConfigurationExpression
