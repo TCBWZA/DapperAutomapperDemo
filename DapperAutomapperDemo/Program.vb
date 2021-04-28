@@ -8,7 +8,7 @@ Imports AutoMapper
 Imports System.Data
 
 ' This code does not use much of the extended functionality bult into AutoMapper
-' With time I may extend this. If you have code or examples to include please let me know.
+' With time I may extend this. If you have code or an examples to include please let me know.
 ' 
 
 
@@ -16,8 +16,10 @@ Imports System.Data
 Module Program
     Private _db As IDbConnection
 
-    Sub Main(args As String())
+    Sub Main()
         Console.WriteLine("Dapper & AutoMapper Demo")
+        Console.WriteLine("https://github.com/TCBWZA/DapperAutomapperDemo")
+
         Dim lDatasource As New List(Of DataSource)
         Dim lDestination As New List(Of Destination)
         Dim DST_ID As Long
@@ -48,13 +50,6 @@ Module Program
         Dim DestMapperConfig As New MapperConfiguration(Sub(config)
                                                             config = DatasourceMapConfig(config)
                                                         End Sub)
-        Dim MobileMapperConfig As New MapperConfiguration(Sub(config)
-                                                              config = MobileMapConfig(config)
-                                                          End Sub)
-        Dim PhoneMapperConfig As New MapperConfiguration(Sub(config)
-                                                             config = PhoneMapConfig(config)
-                                                         End Sub)
-
 
         Try
 
@@ -67,13 +62,9 @@ Module Program
 
 
             Dim DestMapper = DestMapperConfig.CreateMapper
-            Dim MobMapper = MobileMapperConfig.CreateMapper
-            Dim TelMapper = PhoneMapperConfig.CreateMapper
 
 
             DestItem = DestMapper.Map(Of Destination)(iRec)
-            MobItem = MobMapper.Map(Of Phones)(iRec)
-            TeleItem = TelMapper.Map(Of Phones)(iRec)
         Catch ex As AutoMapperMappingException
             Throw
         Catch ex As Exception
@@ -81,17 +72,6 @@ Module Program
                 Throw
             End If
         End Try
-        If Not IsNothing(MobItem.PhoneNumber) Then
-            lPhones.Add(MobItem)
-        End If
-        If Not IsNothing(TeleItem.PhoneNumber) Then
-            lPhones.Add(TeleItem)
-        End If
-
-
-        If lPhones.Count > 0 Then
-            DestItem.Phones = lPhones
-        End If
 
         Return DestItem
 
@@ -110,7 +90,7 @@ Module Program
         ' Change the connection string to match your requirements
         _db = New SqlConnection("Data Source=.;Initial Catalog=DapperAutoMapperDemo;Integrated Security=True")
         Dim SQLDST As String = "Insert Into Destination (Forename,Surname,DateOfBirth,Status,CreateDate,Prefix,Position) OUTPUT Inserted.DST_ID " _
-               & " Values(@Forename,@Surname,@DateOfBirth,@Status,@CreateDate,@Prefix,@Position)"
+                                    & " Values(@Forename,@Surname,@DateOfBirth,@Status,@CreateDate,@Prefix,@Position)"
 
         Console.WriteLine(SQLDST)
 
@@ -142,6 +122,12 @@ Module Program
     End Function
 
     Function DatasourceMapConfig(Config As IMapperConfigurationExpression, Optional StaticValue As String = "StaticValue") As IMapperConfigurationExpression
+        ' If the source and destination field names are the same automapper will map them automatically
+        ' These examples are for changing the mapping where they are different.
+        ' If you need a rule for this e.g. do not map if string is empty you can use the following
+        ' Function(opt) opt.Condition(Function(src As DataSource) (src.Forename <> "")
+
+
         Config.CreateMap(Of DataSource, Destination)() _
                     .ForMember(Function(dest) dest.Status, Sub(opt) opt.MapFrom(Function(src) StaticValue)) _
                     .ForMember(Function(dest) dest.CreateDate, Sub(opt) opt.MapFrom(Function(src) DateTime.UtcNow)) _
@@ -150,24 +136,43 @@ Module Program
                     .ForMember(Function(dest) dest.DateOfBirth, Sub(opt) opt.MapFrom(Function(src As DataSource) src.DOB)) _
                     .ForMember(Function(dest) dest.Prefix, Sub(opt) opt.MapFrom(Function(src As DataSource) If(src.Title.Length < 7, src.Title, Nothing))) _
                     .ForMember(Function(dest) dest.Position, Sub(opt) opt.MapFrom(Function(src As DataSource) If(src.Title.Length >= 7, src.Title, Nothing))) _
-                    .ForMember(Function(dest) dest.Phones, Sub(opt) opt.Ignore())
+                    .ForMember(Function(dest) dest.Phones, Sub(opt) opt.MapFrom(Of PhoneResolver)())
+
+        ' Should you wish to ignore specific fiels then you can use the following.
+        '.ForMember(Function(dest) dest.Phones, Sub(opt) opt.Ignore())
 
         Return Config
     End Function
     Function MobileMapConfig(Config As IMapperConfigurationExpression, Optional DST_ID As Long = -1) As IMapperConfigurationExpression
+        ' Just an example with minimal mapping with a conditinal check.
         Config.CreateMap(Of DataSource, Phones)() _
                     .ForMember(Function(dest) dest.NumberType, Sub(opt) opt.MapFrom(Function(src) "Mobile")) _
                     .ForMember(Function(dest) dest.DST_ID, Sub(opt) opt.MapFrom(Function(src) DST_ID)) _
-                    .ForMember(Function(dest) dest.PhoneNumber, Sub(opt) opt.MapFrom(Function(src As DataSource) src.MobileNumber))
-        Return Config
-    End Function
-    Function PhoneMapConfig(Config As IMapperConfigurationExpression, Optional DST_ID As Long = -1) As IMapperConfigurationExpression
-        Config.CreateMap(Of DataSource, Phones)() _
-                    .ForMember(Function(dest) dest.NumberType, Sub(opt) opt.MapFrom(Function(src) "Telephone")) _
-                    .ForMember(Function(dest) dest.DST_ID, Sub(opt) opt.MapFrom(Function(src) DST_ID)) _
-                    .ForMember(Function(dest) dest.PhoneNumber, Sub(opt) opt.MapFrom(Function(src As DataSource) src.Telephone))
+                    .ForMember(Function(dest) dest.PhoneNumber, Sub(opt) opt.MapFrom(Function(src As DataSource) If(src.MobileNumber.Length > 8, src.MobileNumber, Nothing)))
         Return Config
     End Function
 
+    Public Class PhoneResolver
+        Implements IValueResolver(Of DataSource, Destination, List(Of Phones))
 
+        Public Function Resolver(ByVal source As DataSource, ByVal destination As Destination, ByVal destMember As List(Of Phones), ByVal context As ResolutionContext) As List(Of Phones) Implements IValueResolver(Of DataSource, Destination, List(Of Phones)).Resolve
+            Dim result As List(Of Phones) = New List(Of Phones)()
+
+            If Not String.IsNullOrEmpty(source.MobileNumber) Then
+                result.Add(New Phones With {
+                    .PhoneNumber = source.MobileNumber,
+                    .NumberType = "Mobile"
+                })
+            End If
+
+            If Not String.IsNullOrEmpty(source.Telephone) Then
+                result.Add(New Phones With {
+                    .PhoneNumber = source.Telephone,
+                    .NumberType = "Telephone"
+                })
+            End If
+
+            Return result
+        End Function
+    End Class
 End Module
