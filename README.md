@@ -1,6 +1,6 @@
 # DapperAutomapperDemo
 
-This contains a sample project using both Dapper & AutoMapper.
+This contains a sample project using both Dapper & AutoMapper using .Net Core 3.1 and VB.Net.
 
 The SQL folder contains a couple of T-SQL scripts. The scripts creates tables & data used in the example. (I used SQL Server 2019 Dev Ed.)
 
