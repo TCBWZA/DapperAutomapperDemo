@@ -6,12 +6,11 @@ Imports System.Data.SqlClient
 Imports Dapper
 Imports AutoMapper
 Imports System.Data
+Imports System.Net.Mail
 
-' This code does not use much of the extended functionality bult into AutoMapper
+' This code does not use much of the extended functionality built into AutoMapper
 ' With time I may extend this. If you have code or an examples to include please let me know.
 ' 
-
-
 
 Module Program
     Private _db As IDbConnection
@@ -56,7 +55,7 @@ Module Program
             ' The line below will list all the unmapped fields. Use this to debug and trouble shoot
             ' This will list all the fields that are not mapped or ignored.
             ' This makes checking your code very quick and easy.
-            ' TRY IT (The demo done not have any errors, I suggest adding a random vield to the Destination Class.
+            ' TRY IT (The demo done not have any errors, I suggest adding a random field to the Destination Class.
             ' VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV
             ' DestMapperConfig.AssertConfigurationIsValid()
 
@@ -89,6 +88,7 @@ Module Program
         Dim Parameters As New DynamicParameters
         ' Change the connection string to match your requirements
         _db = New SqlConnection("Data Source=.;Initial Catalog=DapperAutoMapperDemo;Integrated Security=True")
+        ' This way of returning the inserted ID should only be used where there are no triggers. Triggers affect the buffer post the Inserted. stage.
         Dim SQLDST As String = "Insert Into Destination (Forename,Surname,DateOfBirth,Status,CreateDate,Prefix,Position) OUTPUT Inserted.DST_ID " _
                                     & " Values(@Forename,@Surname,@DateOfBirth,@Status,@CreateDate,@Prefix,@Position)"
 
@@ -138,13 +138,13 @@ Module Program
                     .ForMember(Function(dest) dest.Position, Sub(opt) opt.MapFrom(Function(src As DataSource) If(src.Title.Length >= 7, src.Title, Nothing))) _
                     .ForMember(Function(dest) dest.Phones, Sub(opt) opt.MapFrom(Of PhoneResolver)())
 
-        ' Should you wish to ignore specific fiels then you can use the following.
+        ' Should you wish to ignore specific fields then you can use the following.
         '.ForMember(Function(dest) dest.Phones, Sub(opt) opt.Ignore())
 
         Return Config
     End Function
     Function MobileMapConfig(Config As IMapperConfigurationExpression, Optional DST_ID As Long = -1) As IMapperConfigurationExpression
-        ' Just an example with minimal mapping with a conditinal check.
+        ' Just an example with minimal mapping with a conditional check.
         Config.CreateMap(Of DataSource, Phones)() _
                     .ForMember(Function(dest) dest.NumberType, Sub(opt) opt.MapFrom(Function(src) "Mobile")) _
                     .ForMember(Function(dest) dest.DST_ID, Sub(opt) opt.MapFrom(Function(src) DST_ID)) _
@@ -152,6 +152,7 @@ Module Program
         Return Config
     End Function
 
+    ' Map the different telephone numbers from the Source into a Phones List on the destination
     Public Class PhoneResolver
         Implements IValueResolver(Of DataSource, Destination, List(Of Phones))
 
@@ -175,4 +176,5 @@ Module Program
             Return result
         End Function
     End Class
+
 End Module
