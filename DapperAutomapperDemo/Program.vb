@@ -15,6 +15,15 @@ Imports System.Net.Mail
 Module Program
     Private _db As IDbConnection
 
+    ' I did some tests on another project, the movement of the mapper set up to global took the run time from
+    ' 180 sec to 4.16. RTFM they tell you to make this global for a reason.
+    '
+    ' To debug you may want to move it to the Move mapper config to here line, for production
+    ' make sure that it is globally configured.
+
+    Private ReadOnly DestMapperConfig As New MapperConfiguration(Sub(config)
+                                                                     config = DatasourceMapConfig(config)
+                                                                 End Sub)
     Sub Main()
         Console.WriteLine("Dapper & AutoMapper Demo")
         Console.WriteLine("https://github.com/TCBWZA/DapperAutomapperDemo")
@@ -22,6 +31,8 @@ Module Program
         Dim lDatasource As New List(Of DataSource)
         Dim lDestination As New List(Of Destination)
         Dim DST_ID As Long
+
+        ' Move mapper config to here
 
 
         lDatasource = GetSourcedata()
@@ -46,9 +57,7 @@ Module Program
         Dim TeleItem As New Phones
         Dim lPhones As New List(Of Phones)
 
-        Dim DestMapperConfig As New MapperConfiguration(Sub(config)
-                                                            config = DatasourceMapConfig(config)
-                                                        End Sub)
+
 
         Try
 
